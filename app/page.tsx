@@ -202,13 +202,43 @@ return {
       {/* Header */}
       <nav className="border-b border-[#dfe5df] bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 lg:px-8">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-[#173c31]">
-              BUDGETALL
-            </h1>
-            <p className="text-xs text-gray-500">
-              Your money. Your plan. Your clarity.
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1d7a5a] via-[#2e9f79] to-[#0b3f35] shadow-sm">
+              <svg
+                viewBox="0 0 64 64"
+                className="h-8 w-8"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-label="Budgetall logo"
+                role="img"
+              >
+                <path
+                  d="M22 19.5h20c2.8 0 5 2.2 5 5v1.4H17v-1.4c0-2.8 2.2-5 5-5Z"
+                  fill="#F8FBF9"
+                  opacity="0.96"
+                />
+                <path
+                  d="M18 22c0-3.3 2.7-6 6-6h16c3.3 0 6 2.7 6 6v2.2H18V22Zm0 4.8h28v17.2c0 4.1-3.3 7.4-7.4 7.4H25.4c-4.1 0-7.4-3.3-7.4-7.4V26.8Z"
+                  fill="#F8FBF9"
+                />
+                <path
+                  d="M25 32.5h18M25 38.5h12M25 44.5h17"
+                  stroke="#173c31"
+                  strokeWidth="2.8"
+                  strokeLinecap="round"
+                />
+                <circle cx="42" cy="38.5" r="5" fill="#DCEFE5"/>
+                <path d="M42 33.4v10.2M37 38.5h10" stroke="#173c31" strokeWidth="2.1" strokeLinecap="round"/>
+              </svg>
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-black tracking-tight text-[#173c31]">
+                BUDGETALL
+              </h1>
+              <p className="text-xs text-gray-500">
+                Your money. Your plan. Your clarity.
+              </p>
+            </div>
           </div>
 
           <button
