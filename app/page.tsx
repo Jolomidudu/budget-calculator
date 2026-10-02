@@ -91,7 +91,7 @@ function formatCurrency(value: number) {
 
 function getPercentage(value: number, total: number) {
   if (!total || total <= 0) return 0;
-  return Math.min((value / total) * 100, 100);
+  return (value / total) * 100;
 }
 
 export default function Home() {
@@ -110,6 +110,18 @@ export default function Home() {
     const savings = Number(savingsGoal) || 0;
     const committed = totalExpenses + savings;
     const remaining = monthlyIncome - committed;
+
+    let budgetStatus: "empty" | "over" | "tight" | "healthy";
+
+if (monthlyIncome <= 0) {
+  budgetStatus = "empty";
+} else if (remaining < 0) {
+  budgetStatus = "over";
+} else if (remaining / monthlyIncome < 0.1) {
+  budgetStatus = "tight";
+} else {
+  budgetStatus = "healthy";
+}
 
     const expenseRate = getPercentage(totalExpenses, monthlyIncome);
     const savingsRate = getPercentage(savings, monthlyIncome);
@@ -152,6 +164,7 @@ return {
   committedRate,
   largestExpense,
   expenseBreakdown,
+  budgetStatus,
 };
   }, [income, expenses, savingsGoal]);
 
@@ -169,16 +182,17 @@ return {
   }
 
   const {
-    monthlyIncome,
-    totalExpenses,
-    savings,
-    committed,
-    remaining,
-    expenseRate,
-    savingsRate,
-    committedRate,
-    largestExpense,
-  } = calculations;
+  monthlyIncome,
+  totalExpenses,
+  savings,
+  committed,
+  remaining,
+  expenseRate,
+  savingsRate,
+  committedRate,
+  largestExpense,
+  budgetStatus,
+} = calculations;
 
   const budgetIsOver = remaining < 0;
   const hasBudget = monthlyIncome > 0;
@@ -190,7 +204,7 @@ return {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 lg:px-8">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-[#173c31]">
-              Budgetall
+              BUDGETALL
             </h1>
             <p className="text-xs text-gray-500">
               Your money. Your plan. Your clarity.
@@ -426,8 +440,8 @@ return {
                     <div
                       className="h-full rounded-full bg-[#397b65] transition-all duration-500"
                       style={{
-                        width: `${expenseRate}%`,
-                      }}
+  width: `${Math.min(expenseRate, 100)}%`,
+}}
                     />
                   </div>
                 </div>
@@ -447,8 +461,8 @@ return {
                     <div
                       className="h-full rounded-full bg-[#9db9aa] transition-all duration-500"
                       style={{
-                        width: `${savingsRate}%`,
-                      }}
+  width: `${Math.min(savingsRate, 100)}%`,
+}}
                     />
                   </div>
                 </div>
@@ -513,33 +527,50 @@ return {
                 )}
 
                 {/* Status */}
-                {hasBudget && (
-                  <div className="flex items-center gap-3 rounded-2xl bg-gray-50 p-4">
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                        budgetIsOver
-                          ? "bg-red-100 text-red-600"
-                          : "bg-[#dcece4] text-[#397b65]"
-                      }`}
-                    >
-                      {budgetIsOver ? "!" : "✓"}
-                    </span>
+                {/* Budget Health */}
+{hasBudget && (
+  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+    <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+      Budget health
+    </p>
 
-                    <div>
-                      <p className="text-sm font-bold">
-                        {budgetIsOver
-                          ? "Budget needs adjustment"
-                          : "Your budget is balanced"}
-                      </p>
+    <div className="mt-3 flex items-center gap-3">
+      <span
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+          budgetStatus === "over"
+            ? "bg-red-100 text-red-600"
+            : budgetStatus === "tight"
+              ? "bg-amber-100 text-amber-600"
+              : "bg-[#dcece4] text-[#397b65]"
+        }`}
+      >
+        {budgetStatus === "over"
+          ? "!"
+          : budgetStatus === "tight"
+            ? "!"
+            : "✓"}
+      </span>
 
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        {budgetIsOver
-                          ? "Review your planned spending."
-                          : "Your planned spending fits within your income."}
-                      </p>
-                    </div>
-                  </div>
-                )}
+      <div>
+        <p className="text-sm font-bold text-[#173c31]">
+          {budgetStatus === "over"
+            ? "Over budget"
+            : budgetStatus === "tight"
+              ? "Budget is tight"
+              : "Budget is healthy"}
+        </p>
+
+        <p className="mt-0.5 text-xs leading-5 text-gray-500">
+          {budgetStatus === "over"
+            ? "Your planned expenses and savings exceed your income."
+            : budgetStatus === "tight"
+              ? "Only a small portion of your income remains uncommitted."
+              : "Your planned spending leaves room after expenses and savings."}
+        </p>
+      </div>
+    </div>
+  </div>
+)}
               </div>
             </div>
 
@@ -626,7 +657,7 @@ return {
       {/* Footer */}
       <footer className="border-t border-[#dfe5df] bg-white">
         <div className="mx-auto max-w-6xl px-5 py-7 text-center lg:px-8">
-          <p className="text-sm font-bold text-[#173c31]">Budgetall</p>
+          <p className="text-sm font-bold text-[#173c31]">BUDGETALL</p>
           <p className="mt-1 text-xs text-gray-400">
             A simple tool for understanding your monthly budget.
           </p>
