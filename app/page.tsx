@@ -115,31 +115,44 @@ export default function Home() {
     const savingsRate = getPercentage(savings, monthlyIncome);
     const committedRate = getPercentage(committed, monthlyIncome);
 
-    const largestExpense = expenseFields.reduce(
-      (largest, field) =>
-        expenses[field.key] > largest.value
-          ? {
-              label: field.label,
-              value: expenses[field.key],
-            }
-          : largest,
-      {
-        label: "None",
-        value: 0,
-      }
-    );
+   const expenseBreakdown = expenseFields
+  .map((field) => ({
+    ...field,
+    value: expenses[field.key],
+    percentage:
+      totalExpenses > 0
+        ? (expenses[field.key] / totalExpenses) * 100
+        : 0,
+  }))
+  .filter((item) => item.value > 0)
+  .sort((a, b) => b.value - a.value);
 
-    return {
-      monthlyIncome,
-      totalExpenses,
-      savings,
-      committed,
-      remaining,
-      expenseRate,
-      savingsRate,
-      committedRate,
-      largestExpense,
-    };
+const largestExpense = expenseFields.reduce(
+  (largest, field) =>
+    expenses[field.key] > largest.value
+      ? {
+          label: field.label,
+          value: expenses[field.key],
+        }
+      : largest,
+  {
+    label: "None",
+    value: 0,
+  }
+);
+
+return {
+  monthlyIncome,
+  totalExpenses,
+  savings,
+  committed,
+  remaining,
+  expenseRate,
+  savingsRate,
+  committedRate,
+  largestExpense,
+  expenseBreakdown,
+};
   }, [income, expenses, savingsGoal]);
 
   function updateExpense(key: keyof Expenses, value: string) {
@@ -245,6 +258,8 @@ export default function Home() {
           />
         </div>
       </section>
+
+      
 
       {/* Main */}
       <section className="mx-auto max-w-6xl px-5 pb-16 lg:px-8">
@@ -535,6 +550,78 @@ export default function Home() {
           </aside>
         </div>
       </section>
+
+
+      {/* <section className="mt-6 rounded-3xl border border-[#dfe5df] bg-white p-5 shadow-sm md:p-7"> */}
+      <section className="mx-auto max-w-6xl px-5 pb-16 lg:px-8">
+  {/* <div className="mb-6"> */}
+  <div className="rounded-3xl border border-[#dfe5df] bg-white p-5 shadow-sm md:p-7">
+    <p className="text-xs font-bold tracking-[0.18em] text-[#397b65]">
+      EXPENSE BREAKDOWN
+    </p>
+
+    <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#173c31]">
+      Where your money goes
+    </h2>
+
+    <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+      See which categories take the biggest share of your monthly spending.
+    </p>
+  </div>
+
+  {calculations.expenseBreakdown.length === 0 ? (
+    <div className="rounded-2xl border border-dashed border-[#cfdad4] bg-[#f7faf8] px-6 py-10 text-center">
+      <div className="text-3xl">📊</div>
+
+      <h3 className="mt-3 font-semibold text-[#173c31]">
+        Your breakdown will appear here
+      </h3>
+
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
+        Enter your expenses above and Budgetall will show you exactly where
+        your money is going.
+      </p>
+    </div>
+  ) : (
+    <div className="space-y-5">
+      {calculations.expenseBreakdown.map((item) => (
+        <div key={item.key}>
+          <div className="mb-2 flex items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#edf5f1] text-lg">
+                {item.icon}
+              </span>
+
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#173c31]">
+                  {item.label}
+                </p>
+
+                <p className="text-xs text-gray-500">
+                  {item.percentage.toFixed(1)}% of expenses
+                </p>
+              </div>
+            </div>
+
+            <p className="shrink-0 text-sm font-bold text-[#173c31]">
+              {formatCurrency(item.value)}
+            </p>
+          </div>
+
+          <div className="h-2.5 overflow-hidden rounded-full bg-[#edf1ee]">
+            <div
+              className="h-full rounded-full bg-[#397b65] transition-all duration-500"
+              style={{
+                width: `${Math.min(item.percentage, 100)}%`,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+  
+</section>
 
       {/* Footer */}
       <footer className="border-t border-[#dfe5df] bg-white">
