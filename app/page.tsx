@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState } from "react";
@@ -91,6 +90,7 @@ function formatCurrency(value: number) {
 
 function getPercentage(value: number, total: number) {
   if (!total || total <= 0) return 0;
+
   return (value / total) * 100;
 }
 
@@ -113,59 +113,59 @@ export default function Home() {
 
     let budgetStatus: "empty" | "over" | "tight" | "healthy";
 
-if (monthlyIncome <= 0) {
-  budgetStatus = "empty";
-} else if (remaining < 0) {
-  budgetStatus = "over";
-} else if (remaining / monthlyIncome < 0.1) {
-  budgetStatus = "tight";
-} else {
-  budgetStatus = "healthy";
-}
+    if (monthlyIncome <= 0) {
+      budgetStatus = "empty";
+    } else if (remaining < 0) {
+      budgetStatus = "over";
+    } else if (remaining / monthlyIncome < 0.1) {
+      budgetStatus = "tight";
+    } else {
+      budgetStatus = "healthy";
+    }
 
     const expenseRate = getPercentage(totalExpenses, monthlyIncome);
     const savingsRate = getPercentage(savings, monthlyIncome);
     const committedRate = getPercentage(committed, monthlyIncome);
 
-   const expenseBreakdown = expenseFields
-  .map((field) => ({
-    ...field,
-    value: expenses[field.key],
-    percentage:
-      totalExpenses > 0
-        ? (expenses[field.key] / totalExpenses) * 100
-        : 0,
-  }))
-  .filter((item) => item.value > 0)
-  .sort((a, b) => b.value - a.value);
+    const expenseBreakdown = expenseFields
+      .map((field) => ({
+        ...field,
+        value: expenses[field.key],
+        percentage:
+          totalExpenses > 0
+            ? (expenses[field.key] / totalExpenses) * 100
+            : 0,
+      }))
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value);
 
-const largestExpense = expenseFields.reduce(
-  (largest, field) =>
-    expenses[field.key] > largest.value
-      ? {
-          label: field.label,
-          value: expenses[field.key],
-        }
-      : largest,
-  {
-    label: "None",
-    value: 0,
-  }
-);
+    const largestExpense = expenseFields.reduce(
+      (largest, field) =>
+        expenses[field.key] > largest.value
+          ? {
+              label: field.label,
+              value: expenses[field.key],
+            }
+          : largest,
+      {
+        label: "None",
+        value: 0,
+      }
+    );
 
-return {
-  monthlyIncome,
-  totalExpenses,
-  savings,
-  committed,
-  remaining,
-  expenseRate,
-  savingsRate,
-  committedRate,
-  largestExpense,
-  expenseBreakdown,
-  budgetStatus,
-};
+    return {
+      monthlyIncome,
+      totalExpenses,
+      savings,
+      committed,
+      remaining,
+      expenseRate,
+      savingsRate,
+      committedRate,
+      largestExpense,
+      expenseBreakdown,
+      budgetStatus,
+    };
   }, [income, expenses, savingsGoal]);
 
   function updateExpense(key: keyof Expenses, value: string) {
@@ -182,17 +182,18 @@ return {
   }
 
   const {
-  monthlyIncome,
-  totalExpenses,
-  savings,
-  committed,
-  remaining,
-  expenseRate,
-  savingsRate,
-  committedRate,
-  largestExpense,
-  budgetStatus,
-} = calculations;
+    monthlyIncome,
+    totalExpenses,
+    savings,
+    committed,
+    remaining,
+    expenseRate,
+    savingsRate,
+    committedRate,
+    largestExpense,
+    expenseBreakdown,
+    budgetStatus,
+  } = calculations;
 
   const budgetIsOver = remaining < 0;
   const hasBudget = monthlyIncome > 0;
@@ -216,18 +217,32 @@ return {
                   fill="#F8FBF9"
                   opacity="0.96"
                 />
+
                 <path
                   d="M18 22c0-3.3 2.7-6 6-6h16c3.3 0 6 2.7 6 6v2.2H18V22Zm0 4.8h28v17.2c0 4.1-3.3 7.4-7.4 7.4H25.4c-4.1 0-7.4-3.3-7.4-7.4V26.8Z"
                   fill="#F8FBF9"
                 />
+
                 <path
                   d="M25 32.5h18M25 38.5h12M25 44.5h17"
                   stroke="#173c31"
                   strokeWidth="2.8"
                   strokeLinecap="round"
                 />
-                <circle cx="42" cy="38.5" r="5" fill="#DCEFE5"/>
-                <path d="M42 33.4v10.2M37 38.5h10" stroke="#173c31" strokeWidth="2.1" strokeLinecap="round"/>
+
+                <circle
+                  cx="42"
+                  cy="38.5"
+                  r="5"
+                  fill="#DCEFE5"
+                />
+
+                <path
+                  d="M42 33.4v10.2M37 38.5h10"
+                  stroke="#173c31"
+                  strokeWidth="2.1"
+                  strokeLinecap="round"
+                />
               </svg>
             </div>
 
@@ -235,6 +250,7 @@ return {
               <h1 className="text-2xl font-black tracking-tight text-[#173c31]">
                 BUDGETALL
               </h1>
+
               <p className="text-xs text-gray-500">
                 Your money. Your plan. Your clarity.
               </p>
@@ -303,8 +319,6 @@ return {
         </div>
       </section>
 
-      
-
       {/* Main */}
       <section className="mx-auto max-w-6xl px-5 pb-16 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.8fr]">
@@ -370,8 +384,14 @@ return {
                     </div>
 
                     <CurrencyInput
-                      value={expenses[field.key] ? String(expenses[field.key]) : ""}
-                      onChange={(value) => updateExpense(field.key, value)}
+                      value={
+                        expenses[field.key]
+                          ? String(expenses[field.key])
+                          : ""
+                      }
+                      onChange={(value) =>
+                        updateExpense(field.key, value)
+                      }
                       placeholder="0"
                       small
                     />
@@ -455,6 +475,7 @@ return {
                   value={formatCurrency(savings)}
                 />
 
+                {/* Expense Ratio */}
                 <div className="border-t border-gray-100 pt-5">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-sm font-semibold">
@@ -470,12 +491,13 @@ return {
                     <div
                       className="h-full rounded-full bg-[#397b65] transition-all duration-500"
                       style={{
-  width: `${Math.min(expenseRate, 100)}%`,
-}}
+                        width: `${Math.min(expenseRate, 100)}%`,
+                      }}
                     />
                   </div>
                 </div>
 
+                {/* Savings Rate */}
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-sm font-semibold">
@@ -491,8 +513,8 @@ return {
                     <div
                       className="h-full rounded-full bg-[#9db9aa] transition-all duration-500"
                       style={{
-  width: `${Math.min(savingsRate, 100)}%`,
-}}
+                        width: `${Math.min(savingsRate, 100)}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -500,14 +522,14 @@ return {
                 {/* Insight */}
                 <div
                   className={`rounded-2xl p-4 ${
-                    budgetIsOver
-                      ? "bg-red-50"
-                      : "bg-[#f1f6f3]"
+                    budgetIsOver ? "bg-red-50" : "bg-[#f1f6f3]"
                   }`}
                 >
                   <p
                     className={`text-xs font-bold uppercase tracking-wide ${
-                      budgetIsOver ? "text-red-600" : "text-[#397b65]"
+                      budgetIsOver
+                        ? "text-red-600"
+                        : "text-[#397b65]"
                     }`}
                   >
                     Budget insight
@@ -528,7 +550,7 @@ return {
                   </p>
                 </div>
 
-                {/* Largest expense */}
+                {/* Largest Expense */}
                 {hasBudget && largestExpense.value > 0 && (
                   <div className="rounded-2xl border border-gray-100 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
@@ -537,7 +559,10 @@ return {
 
                     <div className="mt-2 flex items-end justify-between gap-3">
                       <div>
-                        <p className="font-bold">{largestExpense.label}</p>
+                        <p className="font-bold">
+                          {largestExpense.label}
+                        </p>
+
                         <p className="mt-1 text-xs text-gray-500">
                           {Math.round(
                             getPercentage(
@@ -556,51 +581,50 @@ return {
                   </div>
                 )}
 
-                {/* Status */}
                 {/* Budget Health */}
-{hasBudget && (
-  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-    <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
-      Budget health
-    </p>
+                {hasBudget && (
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                      Budget health
+                    </p>
 
-    <div className="mt-3 flex items-center gap-3">
-      <span
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-          budgetStatus === "over"
-            ? "bg-red-100 text-red-600"
-            : budgetStatus === "tight"
-              ? "bg-amber-100 text-amber-600"
-              : "bg-[#dcece4] text-[#397b65]"
-        }`}
-      >
-        {budgetStatus === "over"
-          ? "!"
-          : budgetStatus === "tight"
-            ? "!"
-            : "✓"}
-      </span>
+                    <div className="mt-3 flex items-center gap-3">
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                          budgetStatus === "over"
+                            ? "bg-red-100 text-red-600"
+                            : budgetStatus === "tight"
+                              ? "bg-amber-100 text-amber-600"
+                              : "bg-[#dcece4] text-[#397b65]"
+                        }`}
+                      >
+                        {budgetStatus === "over"
+                          ? "!"
+                          : budgetStatus === "tight"
+                            ? "!"
+                            : "✓"}
+                      </span>
 
-      <div>
-        <p className="text-sm font-bold text-[#173c31]">
-          {budgetStatus === "over"
-            ? "Over budget"
-            : budgetStatus === "tight"
-              ? "Budget is tight"
-              : "Budget is healthy"}
-        </p>
+                      <div>
+                        <p className="text-sm font-bold text-[#173c31]">
+                          {budgetStatus === "over"
+                            ? "Over budget"
+                            : budgetStatus === "tight"
+                              ? "Budget is tight"
+                              : "Budget is healthy"}
+                        </p>
 
-        <p className="mt-0.5 text-xs leading-5 text-gray-500">
-          {budgetStatus === "over"
-            ? "Your planned expenses and savings exceed your income."
-            : budgetStatus === "tight"
-              ? "Only a small portion of your income remains uncommitted."
-              : "Your planned spending leaves room after expenses and savings."}
-        </p>
-      </div>
-    </div>
-  </div>
-)}
+                        <p className="mt-0.5 text-xs leading-5 text-gray-500">
+                          {budgetStatus === "over"
+                            ? "Your planned expenses and savings exceed your income."
+                            : budgetStatus === "tight"
+                              ? "Only a small portion of your income remains uncommitted."
+                              : "Your planned spending leaves room after expenses and savings."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -612,82 +636,83 @@ return {
         </div>
       </section>
 
-
-      {/* <section className="mt-6 rounded-3xl border border-[#dfe5df] bg-white p-5 shadow-sm md:p-7"> */}
+      {/* Expense Breakdown */}
       <section className="mx-auto max-w-6xl px-5 pb-16 lg:px-8">
-  {/* <div className="mb-6"> */}
-  <div className="rounded-3xl border border-[#dfe5df] bg-white p-5 shadow-sm md:p-7">
-    <p className="text-xs font-bold tracking-[0.18em] text-[#397b65]">
-      EXPENSE BREAKDOWN
-    </p>
+        <div className="rounded-3xl border border-[#dfe5df] bg-white p-5 shadow-sm md:p-7">
+          <div className="mb-6">
+            <p className="text-xs font-bold tracking-[0.18em] text-[#397b65]">
+              EXPENSE BREAKDOWN
+            </p>
 
-    <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#173c31]">
-      Where your money goes
-    </h2>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#173c31]">
+              Where your money goes
+            </h2>
 
-    <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-      See which categories take the biggest share of your monthly spending.
-    </p>
-  </div>
-
-  {calculations.expenseBreakdown.length === 0 ? (
-    <div className="rounded-2xl border border-dashed border-[#cfdad4] bg-[#f7faf8] px-6 py-10 text-center">
-      <div className="text-3xl">📊</div>
-
-      <h3 className="mt-3 font-semibold text-[#173c31]">
-        Your breakdown will appear here
-      </h3>
-
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
-        Enter your expenses above and Budgetall will show you exactly where
-        your money is going.
-      </p>
-    </div>
-  ) : (
-    <div className="space-y-5">
-      {calculations.expenseBreakdown.map((item) => (
-        <div key={item.key}>
-          <div className="mb-2 flex items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#edf5f1] text-lg">
-                {item.icon}
-              </span>
-
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#173c31]">
-                  {item.label}
-                </p>
-
-                <p className="text-xs text-gray-500">
-                  {item.percentage.toFixed(1)}% of expenses
-                </p>
-              </div>
-            </div>
-
-            <p className="shrink-0 text-sm font-bold text-[#173c31]">
-              {formatCurrency(item.value)}
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+              See which categories take the biggest share of your monthly
+              spending.
             </p>
           </div>
 
-          <div className="h-2.5 overflow-hidden rounded-full bg-[#edf1ee]">
-            <div
-              className="h-full rounded-full bg-[#397b65] transition-all duration-500"
-              style={{
-                width: `${Math.min(item.percentage, 100)}%`,
-              }}
-            />
-          </div>
+          {expenseBreakdown.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#cfdad4] bg-[#f7faf8] px-6 py-10 text-center">
+              <div className="text-3xl">📊</div>
+
+              <h3 className="mt-3 font-semibold text-[#173c31]">
+                Your breakdown will appear here
+              </h3>
+
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
+                Enter your expenses above and Budgetall will show you exactly
+                where your money is going.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {expenseBreakdown.map((item) => (
+                <div key={item.key}>
+                  <div className="mb-2 flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#edf5f1] text-lg">
+                        {item.icon}
+                      </span>
+
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[#173c31]">
+                          {item.label}
+                        </p>
+
+                        <p className="text-xs text-gray-500">
+                          {item.percentage.toFixed(1)}% of expenses
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="shrink-0 text-sm font-bold text-[#173c31]">
+                      {formatCurrency(item.value)}
+                    </p>
+                  </div>
+
+                  <div className="h-2.5 overflow-hidden rounded-full bg-[#edf1ee]">
+                    <div
+                      className="h-full rounded-full bg-[#397b65] transition-all duration-500"
+                      style={{
+                        width: `${Math.min(item.percentage, 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ))}
-    </div>
-  )}
-  
-</section>
+      </section>
 
       {/* Footer */}
       <footer className="border-t border-[#dfe5df] bg-white">
         <div className="mx-auto max-w-6xl px-5 py-7 text-center lg:px-8">
           <p className="text-sm font-bold text-[#173c31]">BUDGETALL</p>
+
           <p className="mt-1 text-xs text-gray-400">
             A simple tool for understanding your monthly budget.
           </p>
@@ -789,4 +814,3 @@ function CurrencyInput({
     </div>
   );
 }
-
