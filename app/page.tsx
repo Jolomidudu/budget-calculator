@@ -147,7 +147,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 lg:px-8">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[#173c31]">
-              Budgetly
+              Budgetall
             </h1>
             <p className="text-xs text-gray-500">
               Simple budgeting for everyday life
@@ -381,7 +381,7 @@ export default function Home() {
             </div>
 
             <p className="mt-4 text-center text-xs leading-5 text-gray-400">
-              Budgetly is a simple planning tool and does not provide financial
+              Budgetall is a simple planning tool and does not provide financial
               advice.
             </p>
           </aside>
