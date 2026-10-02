@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Budgetly
+
+Budgetly is a simple personal budget calculator built with Next.js. It helps users estimate monthly income, track common spending categories, set a savings goal, and instantly see how much money remains after expenses.
+
+## Overview
+
+This app is designed for everyday budgeting and quick financial planning. Users can:
+
+- enter their monthly income
+- log expenses across key categories such as housing, food, transportation, utilities, debt, and entertainment
+- set a monthly savings target
+- view total spending, savings rate, expense rate, and remaining balance
+- reset the budget and start a new planning session
+
+## Features
+
+- Clean, responsive budgeting dashboard
+- Nigerian Naira currency formatting
+- Real-time calculations as values change
+- Simple category-based expense tracking
+- Savings and remaining balance summaries
+- Modern UI built with Next.js and Tailwind CSS
+
+## Tech Stack
+
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+Make sure you have the following installed:
+
+- Node.js 18+
+- npm, yarn, pnpm, or bun
+
+### Installation
+
+```bash
+npm install
+```
+
+### Run the app locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000 in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+.
+├── app/
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── public/
+├── package.json
+├── next.config.ts
+├── tsconfig.json
+├── postcss.config.mjs
+├── eslint.config.mjs
+└── README.md
+```
 
-## Learn More
+## Usage
 
-To learn more about Next.js, take a look at the following resources:
+1. Enter your monthly income.
+2. Add your expected spending in each category.
+3. Set a savings goal if you want to plan ahead.
+4. Review the summary to see:
+   - total expenses
+   - total savings
+   - remaining balance
+   - spending and savings percentages
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+This project is for personal and educational use.
 
-## Deploy on Vercel
+## Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This app is intentionally simple and focused on core budgeting workflow rather than advanced financial analytics. It is ideal as a starting point for a personal finance tool or as a frontend prototype for a larger budgeting product.
