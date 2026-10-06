@@ -1,5 +1,23 @@
 "use client";
 
+import {
+  AlertTriangle,
+  ArrowDownCircle,
+  BarChart3,
+  CarFront,
+  CheckCircle2,
+  CreditCard,
+  Film,
+  House,
+  Lightbulb,
+  PiggyBank,
+  ShoppingBag,
+  Smartphone,
+  TrendingDown,
+  UtensilsCrossed,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 type Expenses = {
@@ -28,55 +46,55 @@ const expenseFields: {
   key: keyof Expenses;
   label: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
 }[] = [
   {
     key: "housing",
     label: "Housing",
     description: "Rent, mortgage or accommodation",
-    icon: "🏠",
+    icon: House,
   },
   {
     key: "food",
     label: "Food",
     description: "Groceries, meals and dining",
-    icon: "🍽️",
+    icon: UtensilsCrossed,
   },
   {
     key: "transportation",
     label: "Transportation",
     description: "Fuel, transport and commuting",
-    icon: "🚗",
+    icon: CarFront,
   },
   {
     key: "utilities",
     label: "Utilities",
     description: "Electricity, water and bills",
-    icon: "💡",
+    icon: Lightbulb,
   },
   {
     key: "phone",
     label: "Phone & Internet",
     description: "Mobile data, calls and internet",
-    icon: "📱",
+    icon: Smartphone,
   },
   {
     key: "debt",
     label: "Debt Payments",
     description: "Loans, credit and repayments",
-    icon: "💳",
+    icon: CreditCard,
   },
   {
     key: "entertainment",
     label: "Entertainment",
     description: "Movies, outings and subscriptions",
-    icon: "🎬",
+    icon: Film,
   },
   {
     key: "other",
     label: "Other",
     description: "Everything else",
-    icon: "🛍️",
+    icon: ShoppingBag,
   },
 ];
 
@@ -291,19 +309,19 @@ export default function Home() {
           <SummaryCard
             label="Monthly income"
             value={formatCurrency(monthlyIncome)}
-            icon="↓"
+            icon={ArrowDownCircle}
           />
 
           <SummaryCard
             label="Total expenses"
             value={formatCurrency(totalExpenses)}
-            icon="−"
+            icon={TrendingDown}
           />
 
           <SummaryCard
             label="Savings goal"
             value={formatCurrency(savings)}
-            icon="↗"
+            icon={PiggyBank}
           />
 
           <SummaryCard
@@ -313,7 +331,7 @@ export default function Home() {
                 ? `-${formatCurrency(Math.abs(remaining))}`
                 : formatCurrency(remaining)
             }
-            icon="="
+            icon={Wallet}
             danger={budgetIsOver}
           />
         </div>
@@ -371,7 +389,7 @@ export default function Home() {
                   >
                     <div className="mb-3 flex items-start gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-lg shadow-sm">
-                        {field.icon}
+                        <field.icon className="h-4 w-4 text-[#397b65]" />
                       </span>
 
                       <div className="min-w-0">
@@ -590,7 +608,7 @@ export default function Home() {
 
                     <div className="mt-3 flex items-center gap-3">
                       <span
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
                           budgetStatus === "over"
                             ? "bg-red-100 text-red-600"
                             : budgetStatus === "tight"
@@ -598,11 +616,11 @@ export default function Home() {
                               : "bg-[#dcece4] text-[#397b65]"
                         }`}
                       >
-                        {budgetStatus === "over"
-                          ? "!"
-                          : budgetStatus === "tight"
-                            ? "!"
-                            : "✓"}
+                        {budgetStatus === "over" || budgetStatus === "tight" ? (
+                          <AlertTriangle className="h-4 w-4" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
                       </span>
 
                       <div>
@@ -656,7 +674,9 @@ export default function Home() {
 
           {expenseBreakdown.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[#cfdad4] bg-[#f7faf8] px-6 py-10 text-center">
-              <div className="text-3xl">📊</div>
+              <div className="flex justify-center">
+                <BarChart3 className="h-10 w-10 text-[#397b65]" />
+              </div>
 
               <h3 className="mt-3 font-semibold text-[#173c31]">
                 Your breakdown will appear here
@@ -674,7 +694,7 @@ export default function Home() {
                   <div className="mb-2 flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#edf5f1] text-lg">
-                        {item.icon}
+                        <item.icon className="h-4 w-4 text-[#397b65]" />
                       </span>
 
                       <div className="min-w-0">
@@ -725,12 +745,12 @@ export default function Home() {
 function SummaryCard({
   label,
   value,
-  icon,
+  icon: Icon,
   danger = false,
 }: {
   label: string;
   value: string;
-  icon: string;
+  icon: LucideIcon;
   danger?: boolean;
 }) {
   return (
@@ -747,7 +767,7 @@ function SummaryCard({
               : "bg-[#edf5f1] text-[#397b65]"
           }`}
         >
-          {icon}
+          <Icon className="h-4 w-4" />
         </span>
       </div>
 
