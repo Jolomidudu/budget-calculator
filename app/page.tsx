@@ -6,11 +6,14 @@ import {
   BarChart3,
   CarFront,
   CheckCircle2,
+  Check,
+  Copy,
   CreditCard,
   Film,
   House,
   Lightbulb,
   PiggyBank,
+  Share2,
   ShoppingBag,
   Smartphone,
   TrendingDown,
@@ -18,7 +21,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Expenses = {
   housing: number;
@@ -116,6 +119,37 @@ export default function Home() {
   const [income, setIncome] = useState("");
   const [expenses, setExpenses] = useState<Expenses>(initialExpenses);
   const [savingsGoal, setSavingsGoal] = useState("");
+  const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "shared">("idle");
+  const [summaryCopied, setSummaryCopied] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hasSharedBudget = expenseFields.some((field) => params.has(field.key)) ||
+      params.has("income") ||
+      params.has("savings");
+
+    if (!hasSharedBudget) return;
+
+    const readNumber = (key: string) => {
+      const value = Number(params.get(key));
+      return Number.isFinite(value) && value >= 0 ? value : 0;
+    };
+
+    setIncome(params.has("income") ? String(readNumber("income")) : "");
+    setSavingsGoal(
+      params.has("savings") ? String(readNumber("savings")) : ""
+    );
+
+    const sharedExpenses = { ...initialExpenses };
+
+    expenseFields.forEach((field) => {
+      if (params.has(field.key)) {
+        sharedExpenses[field.key] = readNumber(field.key);
+      }
+    });
+
+    setExpenses(sharedExpenses);
+  }, []);
 
   const calculations = useMemo(() => {
     const monthlyIncome = Number(income) || 0;
@@ -197,6 +231,115 @@ export default function Home() {
     setIncome("");
     setSavingsGoal("");
     setExpenses(initialExpenses);
+    setShareStatus("idle");
+    setSummaryCopied(false);
+
+    if (typeof window !== "undefined") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }
+
+  function createShareUrl() {
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams();
+
+    if (monthlyIncome > 0) params.set("income", String(monthlyIncome));
+    if (savings > 0) params.set("savings", String(savings));
+
+    expenseFields.forEach((field) => {
+      const value = expenses[field.key];
+      if (value > 0) {
+        params.set(field.key, String(value));
+      }
+    });
+
+    url.search = params.toString();
+    url.hash = "";
+
+    return url.toString();
+  }
+
+  async function copyText(text: string) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+
+  async function shareBudget() {
+    const shareUrl = createShareUrl();
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "My Budgetall Budget",
+          text: "Here is my monthly budget from Budgetall.",
+          url: shareUrl,
+        });
+        setShareStatus("shared");
+      } else {
+        await copyText(shareUrl);
+        setShareStatus("copied");
+      }
+
+      window.setTimeout(() => setShareStatus("idle"), 2500);
+    } catch {
+      // Sharing can be cancelled by the user; no error message is needed.
+    }
+  }
+
+  async function copySummary() {
+    const breakdown = expenseBreakdown.length
+      ? expenseBreakdown
+          .map(
+            (item) =>
+              `- ${item.label}: ${formatCurrency(item.value)} (${item.percentage.toFixed(1)}%)`
+          )
+          .join("\n")
+      : "- No expenses entered";
+
+    const health =
+      budgetStatus === "over"
+        ? "Over budget"
+        : budgetStatus === "tight"
+          ? "Budget is tight"
+          : budgetStatus === "healthy"
+            ? "Budget is healthy"
+            : "Not enough information";
+
+    const summary = [
+      "BUDGETALL — MONTHLY BUDGET SUMMARY",
+      "",
+      `Monthly income: ${formatCurrency(monthlyIncome)}`,
+      `Total expenses: ${formatCurrency(totalExpenses)}`,
+      `Savings goal: ${formatCurrency(savings)}`,
+      `Money remaining: ${budgetIsOver ? "-" : ""}${formatCurrency(Math.abs(remaining))}`,
+      `Savings rate: ${Math.round(savingsRate)}%`,
+      `Budget health: ${health}`,
+      "",
+      "EXPENSE BREAKDOWN",
+      breakdown,
+      "",
+      "Created with Budgetall — Your money. Your plan. Your clarity.",
+    ].join("\n");
+
+    try {
+      await copyText(summary);
+      setSummaryCopied(true);
+      window.setTimeout(() => setSummaryCopied(false), 2500);
+    } catch {
+      // Ignore clipboard failures; the calculator remains fully usable.
+    }
   }
 
   const {
@@ -643,6 +786,52 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+
+                {/* Sharing */}
+                <div className="border-t border-gray-100 pt-5">
+                  <div className="mb-3">
+                    <p className="text-sm font-bold text-[#173c31]">
+                      Share your budget
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                      Share a link or copy a summary of this budget.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={shareBudget}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-[#173c31] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#245345]"
+                    >
+                      {shareStatus === "shared" ? (
+                        <Check className="h-4 w-4" />
+                      ) : shareStatus === "copied" ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Share2 className="h-4 w-4" />
+                      )}
+                      {shareStatus === "shared"
+                        ? "Budget shared"
+                        : shareStatus === "copied"
+                          ? "Link copied"
+                          : "Share budget"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={copySummary}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-[#173c31] transition hover:bg-gray-50"
+                    >
+                      {summaryCopied ? (
+                        <Check className="h-4 w-4 text-[#397b65]" />
+                      ) : (
+                        <Copy className="h-4 w-4 text-[#397b65]" />
+                      )}
+                      {summaryCopied ? "Summary copied" : "Copy summary"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
