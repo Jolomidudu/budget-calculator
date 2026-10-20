@@ -96,15 +96,15 @@ export function MobileBudgetWizard({
         <header className="border-b border-[#dfe5df] bg-white px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black tracking-wide text-[#397b65]">
-                BUDGETALL -{" "}
-                <span className="inline-flex rounded-full bg-[#e4f0eb] px-3 py-1.5 text-xs font-bold tracking-wide text-[#24634f]">
-                  YOUR BUDGET CALCULATOR
+              <p className="flex items-center gap-1 whitespace-nowrap text-[11px] font-black tracking-wide text-[#397b65]">
+                BUDGETALL -
+                <span className="inline-flex shrink-0 rounded-full bg-[#e4f0eb] px-2 py-1 text-[9px] font-bold tracking-wide text-[#24634f]">
+                  
                 </span>
               </p>
               <h2
                 id="mobile-wizard-title"
-                className="mt-1 text-lg font-bold text-[#173c31]"
+                className="mt-1 text-sm font-bold text-[#173c31]"
               >
                 Know where money goes.
               </h2>
