@@ -97,10 +97,8 @@ export function MobileBudgetWizard({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="flex items-center gap-1 whitespace-nowrap text-[11px] font-black tracking-wide text-[#397b65]">
-                BUDGETALL -
-                <span className="inline-flex shrink-0 rounded-full bg-[#e4f0eb] px-2 py-1 text-[9px] font-bold tracking-wide text-[#24634f]">
-                  
-                </span>
+                BUDGETALL
+                
               </p>
               <h2
                 id="mobile-wizard-title"
