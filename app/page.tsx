@@ -34,6 +34,24 @@ type Expenses = {
   other: number;
 };
 
+type CurrencyCode = "NGN" | "GBP" | "USD" | "CNY" | "ZAR" | "AED";
+
+type ExchangeRatesResponse = {
+  result: string;
+  base_code: string;
+  time_last_update_utc: string;
+  rates: Record<CurrencyCode, number>;
+};
+
+const currencies: { code: CurrencyCode; label: string }[] = [
+  { code: "NGN", label: "Nigerian naira" },
+  { code: "GBP", label: "British pounds" },
+  { code: "USD", label: "US dollars" },
+  { code: "CNY", label: "Chinese yuan" },
+  { code: "ZAR", label: "South African rand" },
+  { code: "AED", label: "UAE dirhams" },
+];
+
 const initialExpenses: Expenses = {
   housing: 0,
   food: 0,
@@ -101,12 +119,48 @@ const expenseFields: {
   },
 ];
 
-function formatCurrency(value: number) {
+function formatCurrency(value: number, currency: CurrencyCode) {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 0,
+    currency,
+    maximumFractionDigits: currency === "NGN" ? 0 : 2,
   }).format(Math.max(0, value));
+}
+
+function isExchangeRatesResponse(value: unknown): value is ExchangeRatesResponse {
+  if (typeof value !== "object" || value === null) return false;
+
+  const data = value as Partial<ExchangeRatesResponse>;
+  return (
+    data.result === "success" &&
+    data.base_code === "NGN" &&
+    typeof data.time_last_update_utc === "string" &&
+    typeof data.rates === "object" &&
+    data.rates !== null &&
+    currencies.every(
+      ({ code }) =>
+        Number.isFinite(data.rates?.[code]) && (data.rates?.[code] ?? 0) > 0
+    )
+  );
+}
+
+function getCurrencySymbol(currency: CurrencyCode) {
+  return new Intl.NumberFormat("en", {
+    style: "currency",
+    currency,
+    currencyDisplay: "narrowSymbol",
+  })
+    .formatToParts(0)
+    .find((part) => part.type === "currency")?.value ?? currency;
+}
+
+function formatNumberInput(value: string) {
+  const [integerPart, ...decimalParts] = value.split(".");
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+  return decimalParts.length
+    ? `${formattedInteger}.${decimalParts.join("")}`
+    : formattedInteger;
 }
 
 function getPercentage(value: number, total: number) {
@@ -119,16 +173,62 @@ export default function Home() {
   const [income, setIncome] = useState("");
   const [expenses, setExpenses] = useState<Expenses>(initialExpenses);
   const [savingsGoal, setSavingsGoal] = useState("");
+  const [currency, setCurrency] = useState<CurrencyCode>("NGN");
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRatesResponse["rates"] | null>(null);
+  const [rateError, setRateError] = useState("");
+  const [isLoadingRates, setIsLoadingRates] = useState(true);
+  const [rateRetryCount, setRateRetryCount] = useState(0);
   const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "shared">("idle");
   const [summaryCopied, setSummaryCopied] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadRates() {
+      try {
+        const response = await fetch("https://open.er-api.com/v6/latest/NGN", {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) throw new Error("Could not load exchange rates.");
+
+        const data: unknown = await response.json();
+        if (!isExchangeRatesResponse(data)) {
+          throw new Error("The exchange-rate service returned invalid data.");
+        }
+
+        setExchangeRates(data.rates);
+        setRateError("");
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setRateError(
+            error instanceof Error
+              ? error.message
+              : "Could not load exchange rates."
+          );
+        }
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingRates(false);
+      }
+    }
+
+    void loadRates();
+    return () => controller.abort();
+  }, [rateRetryCount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const hasSharedBudget = expenseFields.some((field) => params.has(field.key)) ||
       params.has("income") ||
-      params.has("savings");
+      params.has("savings") ||
+      params.has("currency");
 
     if (!hasSharedBudget) return;
+
+    const sharedCurrency = params.get("currency");
+    if (currencies.some(({ code }) => code === sharedCurrency)) {
+      setCurrency(sharedCurrency as CurrencyCode);
+    }
 
     const readNumber = (key: string) => {
       const value = Number(params.get(key));
@@ -227,6 +327,31 @@ export default function Home() {
     }));
   }
 
+  function changeCurrency(nextCurrency: CurrencyCode) {
+    if (!exchangeRates) return;
+    if (nextCurrency === currency) return;
+
+    const conversionFactor =
+      exchangeRates[nextCurrency] / exchangeRates[currency];
+    const convertAmount = (value: number) =>
+      Number((value * conversionFactor).toFixed(2));
+
+    setIncome((current) =>
+      current ? String(convertAmount(Number(current))) : ""
+    );
+    setSavingsGoal((current) =>
+      current ? String(convertAmount(Number(current))) : ""
+    );
+    setExpenses((current) => {
+      const convertedExpenses = { ...current };
+      expenseFields.forEach(({ key }) => {
+        convertedExpenses[key] = convertAmount(current[key]);
+      });
+      return convertedExpenses;
+    });
+    setCurrency(nextCurrency);
+  }
+
   function resetBudget() {
     setIncome("");
     setSavingsGoal("");
@@ -243,6 +368,7 @@ export default function Home() {
     const url = new URL(window.location.href);
     const params = new URLSearchParams();
 
+    params.set("currency", currency);
     if (monthlyIncome > 0) params.set("income", String(monthlyIncome));
     if (savings > 0) params.set("savings", String(savings));
 
@@ -303,7 +429,7 @@ export default function Home() {
       ? expenseBreakdown
           .map(
             (item) =>
-              `- ${item.label}: ${formatCurrency(item.value)} (${item.percentage.toFixed(1)}%)`
+              `- ${item.label}: ${formatCurrency(item.value, currency)} (${item.percentage.toFixed(1)}%)`
           )
           .join("\n")
       : "- No expenses entered";
@@ -320,10 +446,10 @@ export default function Home() {
     const summary = [
       "BUDGETALL — MONTHLY BUDGET SUMMARY",
       "",
-      `Monthly income: ${formatCurrency(monthlyIncome)}`,
-      `Total expenses: ${formatCurrency(totalExpenses)}`,
-      `Savings goal: ${formatCurrency(savings)}`,
-      `Money remaining: ${budgetIsOver ? "-" : ""}${formatCurrency(Math.abs(remaining))}`,
+      `Monthly income: ${formatCurrency(monthlyIncome, currency)}`,
+      `Total expenses: ${formatCurrency(totalExpenses, currency)}`,
+      `Savings goal: ${formatCurrency(savings, currency)}`,
+      `Money remaining: ${budgetIsOver ? "-" : ""}${formatCurrency(Math.abs(remaining), currency)}`,
       `Savings rate: ${Math.round(savingsRate)}%`,
       `Budget health: ${health}`,
       "",
@@ -361,9 +487,35 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#f6f8f5] text-[#17251f]">
+      <MobileBudgetWizard
+        income={income}
+        onIncomeChange={setIncome}
+        expenses={expenses}
+        updateExpense={updateExpense}
+        savingsGoal={savingsGoal}
+        onSavingsGoalChange={setSavingsGoal}
+        currency={currency}
+        onCurrencyChange={changeCurrency}
+        currencyDisabled={!exchangeRates}
+        isLoadingRates={isLoadingRates}
+        rateError={rateError}
+        onRetryRates={() => {
+          setRateError("");
+          setIsLoadingRates(true);
+          setRateRetryCount((count) => count + 1);
+        }}
+        monthlyIncome={monthlyIncome}
+        totalExpenses={totalExpenses}
+        savings={savings}
+        remaining={remaining}
+        budgetIsOver={budgetIsOver}
+        budgetStatus={budgetStatus}
+        expenseBreakdown={expenseBreakdown}
+      />
+
       {/* Header */}
       <nav className="border-b border-[#dfe5df] bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 lg:px-8">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5 lg:px-8">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1d7a5a] via-[#2e9f79] to-[#0b3f35] shadow-sm">
               <svg
@@ -418,13 +570,28 @@ export default function Home() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={resetBudget}
-            className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
-          >
-            Reset
-          </button>
+          <div className="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto">
+            <CurrencySelector
+              currency={currency}
+              onChange={changeCurrency}
+              disabled={!exchangeRates}
+              isLoading={isLoadingRates}
+              error={rateError}
+              onRetry={() => {
+                setRateError("");
+                setIsLoadingRates(true);
+                setRateRetryCount((count) => count + 1);
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={resetBudget}
+              className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+            >
+              Reset
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -451,19 +618,19 @@ export default function Home() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard
             label="Monthly income"
-            value={formatCurrency(monthlyIncome)}
+            value={formatCurrency(monthlyIncome, currency)}
             icon={ArrowDownCircle}
           />
 
           <SummaryCard
             label="Total expenses"
-            value={formatCurrency(totalExpenses)}
+            value={formatCurrency(totalExpenses, currency)}
             icon={TrendingDown}
           />
 
           <SummaryCard
             label="Savings goal"
-            value={formatCurrency(savings)}
+            value={formatCurrency(savings, currency)}
             icon={PiggyBank}
           />
 
@@ -471,8 +638,8 @@ export default function Home() {
             label="Money remaining"
             value={
               budgetIsOver
-                ? `-${formatCurrency(Math.abs(remaining))}`
-                : formatCurrency(remaining)
+                ? `-${formatCurrency(Math.abs(remaining), currency)}`
+                : formatCurrency(remaining, currency)
             }
             icon={Wallet}
             danger={budgetIsOver}
@@ -505,6 +672,8 @@ export default function Home() {
                 value={income}
                 onChange={setIncome}
                 placeholder="500,000"
+                currency={currency}
+                formatWithCommas
               />
             </section>
 
@@ -555,6 +724,8 @@ export default function Home() {
                       }
                       placeholder="0"
                       small
+                      currency={currency}
+                      formatWithCommas
                     />
                   </div>
                 ))}
@@ -581,6 +752,8 @@ export default function Home() {
                 value={savingsGoal}
                 onChange={setSavingsGoal}
                 placeholder="100,000"
+                currency={currency}
+                formatWithCommas
               />
             </section>
           </div>
@@ -600,8 +773,8 @@ export default function Home() {
 
                 <p className="mt-1 break-words text-4xl font-black tracking-tight">
                   {budgetIsOver
-                    ? `-${formatCurrency(Math.abs(remaining))}`
-                    : formatCurrency(remaining)}
+                    ? `-${formatCurrency(Math.abs(remaining), currency)}`
+                    : formatCurrency(remaining, currency)}
                 </p>
 
                 <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/15">
@@ -623,17 +796,17 @@ export default function Home() {
               <div className="space-y-6 p-6 sm:p-7">
                 <ResultRow
                   label="Income"
-                  value={formatCurrency(monthlyIncome)}
+                  value={formatCurrency(monthlyIncome, currency)}
                 />
 
                 <ResultRow
                   label="Expenses"
-                  value={formatCurrency(totalExpenses)}
+                  value={formatCurrency(totalExpenses, currency)}
                 />
 
                 <ResultRow
                   label="Savings"
-                  value={formatCurrency(savings)}
+                  value={formatCurrency(savings, currency)}
                 />
 
                 {/* Expense Ratio */}
@@ -701,7 +874,7 @@ export default function Home() {
                       ? "Enter your monthly income to see your budget insight."
                       : budgetIsOver
                         ? `Your plan is ${formatCurrency(
-                            Math.abs(remaining)
+                            Math.abs(remaining), currency
                           )} over your income. Consider reducing some expenses or adjusting your savings goal.`
                         : savingsRate >= 20
                           ? "Your savings target is at least 20% of your income. You're giving yourself room to build a financial cushion."
@@ -736,7 +909,7 @@ export default function Home() {
                       </div>
 
                       <p className="font-bold text-[#173c31]">
-                        {formatCurrency(largestExpense.value)}
+                        {formatCurrency(largestExpense.value, currency)}
                       </p>
                     </div>
                   </div>
@@ -898,7 +1071,7 @@ export default function Home() {
                     </div>
 
                     <p className="shrink-0 text-sm font-bold text-[#173c31]">
-                      {formatCurrency(item.value)}
+                      {formatCurrency(item.value, currency)}
                     </p>
                   </div>
 
@@ -987,16 +1160,414 @@ function ResultRow({
   );
 }
 
+function MobileBudgetWizard({
+  income,
+  onIncomeChange,
+  expenses,
+  updateExpense,
+  savingsGoal,
+  onSavingsGoalChange,
+  currency,
+  onCurrencyChange,
+  currencyDisabled,
+  isLoadingRates,
+  rateError,
+  onRetryRates,
+  monthlyIncome,
+  totalExpenses,
+  savings,
+  remaining,
+  budgetIsOver,
+  budgetStatus,
+  expenseBreakdown,
+}: {
+  income: string;
+  onIncomeChange: (value: string) => void;
+  expenses: Expenses;
+  updateExpense: (key: keyof Expenses, value: string) => void;
+  savingsGoal: string;
+  onSavingsGoalChange: (value: string) => void;
+  currency: CurrencyCode;
+  onCurrencyChange: (currency: CurrencyCode) => void;
+  currencyDisabled: boolean;
+  isLoadingRates: boolean;
+  rateError: string;
+  onRetryRates: () => void;
+  monthlyIncome: number;
+  totalExpenses: number;
+  savings: number;
+  remaining: number;
+  budgetIsOver: boolean;
+  budgetStatus: "empty" | "over" | "tight" | "healthy";
+  expenseBreakdown: {
+    key: keyof Expenses;
+    label: string;
+    description: string;
+    icon: LucideIcon;
+    value: number;
+    percentage: number;
+  }[];
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+  const [step, setStep] = useState(1);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex bg-[#17251f]/55 sm:hidden">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mobile-wizard-title"
+        className="flex h-dvh w-full flex-col bg-[#f6f8f5]"
+      >
+        <header className="border-b border-[#dfe5df] bg-white px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black tracking-wide text-[#397b65]">
+                BUDGETALL  - <span className="inline-flex rounded-full bg-[#e4f0eb] px-3 py-1.5 text-xs font-bold tracking-wide text-[#24634f]">
+            PERSONAL BUDGET CALCULATOR
+          </span>
+              </p>
+              
+              <h2
+                id="mobile-wizard-title"
+                className="mt-1 text-lg font-bold text-[#173c31]"
+              >
+               Know exactly where your money goes.
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-100"
+            >
+              Skip
+            </button>
+          </div>
+
+          <div className="mt-4 flex items-center gap-1.5" aria-hidden="true">
+            {Array.from({ length: 5 }, (_, index) => (
+              <span
+                key={index}
+                className={`h-1.5 flex-1 rounded-full ${
+                  index < step ? "bg-[#397b65]" : "bg-gray-200"
+                }`}
+              />
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-gray-500">
+              Step {step} of 5
+            </p>
+            {step <= 3 && (
+              <CurrencySelector
+                currency={currency}
+                onChange={onCurrencyChange}
+                disabled={currencyDisabled}
+                isLoading={isLoadingRates}
+                error={rateError}
+                onRetry={onRetryRates}
+              />
+            )}
+          </div>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
+          {step === 1 && (
+            <div className="rounded-3xl border border-[#dfe5df] bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold tracking-wide text-[#397b65]">
+                STEP 1
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-[#173c31]">
+                What is your monthly income?
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                Use your take-home income after deductions.
+              </p>
+              <div className="mt-6">
+                <CurrencyInput
+                  value={income}
+                  onChange={onIncomeChange}
+                  placeholder="500,000"
+                  currency={currency}
+                  formatWithCommas
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <p className="text-xs font-bold tracking-wide text-[#397b65]">
+                STEP 2
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-[#173c31]">
+                What do you spend each month?
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                Add your regular monthly expenses.
+              </p>
+              <div className="mt-5 space-y-3">
+                {expenseFields.map((field) => (
+                  <label
+                    key={field.key}
+                    className="block rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+                  >
+                    <span className="flex items-center gap-2 font-semibold text-[#173c31]">
+                      <field.icon className="h-4 w-4 text-[#397b65]" />
+                      {field.label}
+                    </span>
+                    <span className="mt-1 block text-xs text-gray-500">
+                      {field.description}
+                    </span>
+                    <span className="mt-3 block">
+                      <CurrencyInput
+                        value={
+                          expenses[field.key]
+                            ? String(expenses[field.key])
+                            : ""
+                        }
+                        onChange={(value) => updateExpense(field.key, value)}
+                        placeholder="0"
+                        small
+                        currency={currency}
+                        formatWithCommas
+                      />
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="rounded-3xl border border-[#dfe5df] bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold tracking-wide text-[#397b65]">
+                STEP 3
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-[#173c31]">
+                How much do you want to save?
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                Set a monthly savings target.
+              </p>
+              <div className="mt-6">
+                <CurrencyInput
+                  value={savingsGoal}
+                  onChange={onSavingsGoalChange}
+                  placeholder="100,000"
+                  currency={currency}
+                  formatWithCommas
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div>
+              <p className="text-xs font-bold tracking-wide text-[#397b65]">
+                STEP 4
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-[#173c31]">
+                Your budget at a glance
+              </h3>
+              <div
+                className={`mt-5 rounded-3xl p-5 text-white ${
+                  budgetIsOver ? "bg-red-700" : "bg-[#173c31]"
+                }`}
+              >
+                <p className="text-sm text-white/75">Money remaining</p>
+                <p className="mt-1 break-words text-3xl font-black">
+                  {budgetIsOver ? "-" : ""}
+                  {formatCurrency(Math.abs(remaining), currency)}
+                </p>
+                <p className="mt-3 text-sm font-semibold">
+                  {budgetStatus === "over"
+                    ? "Your plan is over budget."
+                    : budgetStatus === "tight"
+                      ? "Your budget is tight."
+                      : budgetStatus === "healthy"
+                        ? "Your budget is healthy."
+                        : "Enter your income to see your budget status."}
+                </p>
+              </div>
+              <div className="mt-4 space-y-3 rounded-2xl border border-[#dfe5df] bg-white p-5">
+                <ResultRow
+                  label="Monthly income"
+                  value={formatCurrency(monthlyIncome, currency)}
+                />
+                <ResultRow
+                  label="Total expenses"
+                  value={formatCurrency(totalExpenses, currency)}
+                />
+                <ResultRow
+                  label="Savings goal"
+                  value={formatCurrency(savings, currency)}
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 5 && (
+            <div>
+              <p className="text-xs font-bold tracking-wide text-[#397b65]">
+                STEP 5
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-[#173c31]">
+                Your expense breakdown
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                See which categories take the biggest share of your spending.
+              </p>
+              {expenseBreakdown.length === 0 ? (
+                <div className="mt-5 rounded-2xl border border-dashed border-[#cfdad4] bg-white px-5 py-10 text-center">
+                  <BarChart3 className="mx-auto h-9 w-9 text-[#397b65]" />
+                  <p className="mt-3 font-semibold text-[#173c31]">
+                    No expenses entered yet
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    You can add expenses by going back to Step 2.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-5 space-y-4 rounded-2xl border border-[#dfe5df] bg-white p-5">
+                  {expenseBreakdown.map((item) => (
+                    <div key={item.key}>
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <item.icon className="h-4 w-4 shrink-0 text-[#397b65]" />
+                          <span className="truncate text-sm font-semibold text-[#173c31]">
+                            {item.label}
+                          </span>
+                          <span className="shrink-0 text-xs text-gray-500">
+                            {item.percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                        <span className="shrink-0 text-sm font-bold text-[#173c31]">
+                          {formatCurrency(item.value, currency)}
+                        </span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[#edf1ee]">
+                        <div
+                          className="h-full rounded-full bg-[#397b65]"
+                          style={{
+                            width: `${Math.min(item.percentage, 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <footer className="border-t border-[#dfe5df] bg-white px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+          <div className="flex gap-3">
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={() => setStep((current) => current - 1)}
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-semibold text-[#173c31]"
+              >
+                Back
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (step === 5) {
+                  setIsOpen(false);
+                } else {
+                  setStep((current) => current + 1);
+                }
+              }}
+              className="flex-1 rounded-xl bg-[#173c31] px-4 py-3 font-semibold text-white transition hover:bg-[#245345]"
+            >
+              {step === 5 ? "Finish" : step === 3 ? "See my budget" : "Continue"}
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function CurrencySelector({
+  currency,
+  onChange,
+  disabled,
+  isLoading,
+  error,
+  onRetry,
+}: {
+  currency: CurrencyCode;
+  onChange: (currency: CurrencyCode) => void;
+  disabled: boolean;
+  isLoading: boolean;
+  error: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <label htmlFor="budget-currency" className="text-xs font-semibold text-gray-500">
+        Currency
+      </label>
+      <select
+        id="budget-currency"
+        value={currency}
+        disabled={disabled}
+        onChange={(event) => {
+          const nextCurrency = currencies.find(
+            ({ code }) => code === event.currentTarget.value
+          );
+          if (nextCurrency) onChange(nextCurrency.code);
+        }}
+        className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-[#17251f] outline-none transition focus:border-[#397b65] disabled:cursor-wait disabled:opacity-60"
+      >
+        {currencies.map(({ code, label }) => (
+          <option key={code} value={code}>
+            {code} — {label}
+          </option>
+        ))}
+      </select>
+      {isLoading && (
+        <span className="text-xs text-gray-400">Loading rates…</span>
+      )}
+      {error && (
+        <div className="flex items-center gap-2">
+          <p role="alert" className="max-w-40 text-xs text-red-600">
+            {error}
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="text-xs font-semibold text-[#397b65] underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CurrencyInput({
   value,
   onChange,
   placeholder,
   small = false,
+  formatWithCommas = false,
+  currency = "NGN",
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   small?: boolean;
+  formatWithCommas?: boolean;
+  currency?: CurrencyCode;
 }) {
   return (
     <div className="relative">
@@ -1005,14 +1576,49 @@ function CurrencyInput({
           small ? "text-sm" : "text-lg"
         }`}
       >
-        ₦
+        {getCurrencySymbol(currency)}
       </span>
 
       <input
-        type="number"
-        min="0"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        type={formatWithCommas ? "text" : "number"}
+        inputMode={formatWithCommas ? "decimal" : undefined}
+        min={formatWithCommas ? undefined : "0"}
+        value={formatWithCommas ? formatNumberInput(value) : value}
+        onChange={(e) => {
+          if (!formatWithCommas) {
+            onChange(e.currentTarget.value);
+            return;
+          }
+
+          const input = e.currentTarget;
+          const cursor = input.selectionStart ?? input.value.length;
+          const charactersBeforeCursor = input.value
+            .slice(0, cursor)
+            .replace(/,/g, "").length;
+          const sanitizedValue = input.value
+            .replace(/,/g, "")
+            .replace(/[^\d.]/g, "");
+          const [integerPart, ...decimalParts] = sanitizedValue.split(".");
+          const nextValue = decimalParts.length
+            ? `${integerPart}.${decimalParts.join("")}`
+            : integerPart;
+          const formattedValue = formatNumberInput(nextValue);
+          let nextCursor = 0;
+          let charactersSeen = 0;
+
+          while (
+            nextCursor < formattedValue.length &&
+            charactersSeen < charactersBeforeCursor
+          ) {
+            if (formattedValue[nextCursor] !== ",") charactersSeen += 1;
+            nextCursor += 1;
+          }
+
+          onChange(nextValue);
+          requestAnimationFrame(() => {
+            input.setSelectionRange(nextCursor, nextCursor);
+          });
+        }}
         placeholder={placeholder}
         className={`w-full border border-gray-200 bg-[#fafbfa] font-semibold outline-none transition placeholder:text-gray-300 focus:border-[#397b65] focus:ring-4 focus:ring-[#397b65]/10 ${
           small
