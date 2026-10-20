@@ -134,10 +134,10 @@ export function MobileBudgetWizard({
             </p>
             <dl className="mt-2 grid grid-cols-4 gap-2">
               {[
-                { label: "Monthly-Inc", value: monthlyIncome },
-                { label: "Total-Exp", value: totalExpenses },
-                { label: "Savings-Goal", value: savings },
-                { label: "Money-Left", value: remaining },
+                { label: "MonthlyInc", value: monthlyIncome },
+                { label: "TotalExp", value: totalExpenses },
+                { label: "SavingsGoal", value: savings },
+                { label: "MoneyLeft", value: remaining },
               ].map(({ label, value }) => (
                 <div
                   key={label}
